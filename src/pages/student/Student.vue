@@ -1,6 +1,7 @@
 <script setup lang="ts">
 
 import {ref} from "vue";
+import {UsersProfile} from "@/widgets/UsersProfile";
 
 const name = ref<string>();
 const lastName = ref<string>();
@@ -34,9 +35,9 @@ async function setStudent() {
 <template>
   <h1>If u'r a student, u nust enter ur name, lastname, middlename</h1>
   <div>
-    <input v-model="name" type="text" placeholder="Name" />
-    <input v-model="lastName" type="text" placeholder="Lastname" />
-    <input v-model="middleName" type="text" placeholder="Middlename" />
+<!--    <input v-model="name" type="text" placeholder="Name" />-->
+<!--    <input v-model="lastName" type="text" placeholder="Lastname" />-->
+<!--    <input v-model="middleName" type="text" placeholder="Middlename" />-->
     <p>Get Users in ID</p>
     <input v-model="usersByID" type="text" placeholder="Users by ID" />
   </div>
@@ -49,7 +50,7 @@ async function setStudent() {
   </div>
   <div v-if="studentDate">
     <h3>Found Student:</h3>
-    <pre>{{ studentDate }}</pre>
+    <users-profile :users="studentDate" />
   </div>
 </template>
 
