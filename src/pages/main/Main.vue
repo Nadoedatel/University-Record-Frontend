@@ -13,21 +13,20 @@ const setStudent = (value: boolean) => {
 };
 
 const closeModal = () => {
-  isStudent.value = false; // или null, в зависимости от логики приложения
+  isStudent.value = null;
 };
 </script>
 
 <template>
-  <MainHeaderMenu />
   <div v-if="isStudent === null" class="modal-overlay" @click.self="closeModal">
     <div class="modal-container">
       <div class="modal-header">
-        <h2>Who are you?</h2>
+        <h2>Кто ты?</h2>
         <button class="close-button" @click="closeModal">×</button>
       </div>
 
       <div class="modal-content">
-        <p>Please select your role to continue:</p>
+        <p>Пожалуйста выбирите свою роль для продолжения:</p>
 
         <div class="role-buttons">
           <button
@@ -36,8 +35,7 @@ const closeModal = () => {
           >
             <div class="button-icon">🎓</div>
             <div class="button-text">
-              <div class="button-title">Student</div>
-              <div class="button-description">I'm here to learn</div>
+              <div class="button-title">Студент</div>
             </div>
           </button>
 
@@ -47,17 +45,10 @@ const closeModal = () => {
           >
             <div class="button-icon">👨‍🏫</div>
             <div class="button-text">
-              <div class="button-title">Teacher</div>
-              <div class="button-description">I'm here to teach</div>
+              <div class="button-title">Преподователь</div>
             </div>
           </button>
         </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="skip-button" @click="closeModal">
-          Skip for now
-        </button>
       </div>
     </div>
   </div>
@@ -172,7 +163,6 @@ const closeModal = () => {
 .button-title {
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 4px;
 }
 
 .button-description {
