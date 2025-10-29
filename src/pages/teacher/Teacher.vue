@@ -1,12 +1,22 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { UsersProfile } from "@/widgets/UsersProfile";
+import {ref} from "vue";
+import {UsersProfile} from "@/widgets/UsersProfile";
 
 const name = ref<string>();
 const lastName = ref<string>();
 const middleName = ref<string>();
-const teacherData = ref<null>();
+const teacherData = ref<any>(null);
 const usersByID = ref<string>();
+const isExam = ref<boolean | null>(null);
+const groups = ref<string[]>([]);
+const studentsDate = ref<any[]>([]);
+const selectedGroup = ref<string>('');
+const studentGrades = ref<{[key: number]: number | string}>({});
+
+const setExam = (value: boolean) => {
+  isExam.value = value;
+  getGroup();
+};
 
 async function setTeacher() {
   try {
@@ -23,12 +33,152 @@ async function setTeacher() {
     }
 
     const data = await response.json();
-    teacherData.value = data;
-    console.log("Teacher data:", data);
+    // Преобразуем данные в обычный объект
+    teacherData.value = JSON.parse(JSON.stringify(data));
+    console.log("Teacher data:", teacherData.value);
   } catch (err) {
     console.log(err);
   }
 }
+
+async function getGroup() {
+  try {
+    studentsDate.value = [];
+    selectedGroup.value = '';
+    const urlGroup = 'http://localhost:8080/api/groups';
+
+    const response = await fetch(urlGroup)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    groups.value = Array.isArray(data) ? data : [];
+    console.log("Group data", groups.value);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+async function getStudentByGroup(groupId: string) {
+  try {
+    selectedGroup.value = groupId;
+    const urlStudentsByGroup = `http://localhost:8080/api/groups/${groupId}/students`;
+
+    const response = await fetch(urlStudentsByGroup);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    studentsDate.value = Array.isArray(data) ? data : [];
+    console.log("Student data", studentsDate.value);
+
+    // Инициализируем оценки для каждого студента
+    studentGrades.value = {};
+    studentsDate.value.forEach(student => {
+      if (student && student.id) {
+        studentGrades.value[student.id] = isExam.value ? 5 : 'зачет';
+      }
+    });
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+function setStudentGrade(studentId: number, grade: number | string) {
+  studentGrades.value[studentId] = grade;
+}
+
+function handleExamGradeChange(studentId: number, event: Event) {
+  const target = event.target as HTMLSelectElement;
+  if (target) {
+    setStudentGrade(studentId, parseInt(target.value));
+  }
+}
+
+function handleTestGradeChange(studentId: number, event: Event) {
+  const target = event.target as HTMLSelectElement;
+  if (target) {
+    setStudentGrade(studentId, target.value);
+  }
+}
+
+async function postGradeStudent(studentId: number, studentName: string) {
+  try {
+    const gradeValue = studentGrades.value[studentId];
+    const gradeType = isExam.value ? 'exam' : 'test';
+
+    // Валидация оценки
+    if (isExam.value) {
+      const numericGrade = gradeValue as number;
+      if (numericGrade < 0 || numericGrade > 10) {
+        alert('Оценка должна быть от 0 до 10');
+        return;
+      }
+    }
+
+    // Безопасное получение имени преподавателя
+    const teacherName = teacherData.value
+        ? `${teacherData.value.last_name || ''}`.trim()
+        : 'Преподаватель';
+
+    const gradeData = {
+      student_id: studentId,
+      subject_name: getSubjectName(),
+      subject_hours: getSubjectHours(),
+      grade_value: isExam.value ? (gradeValue as number) : (gradeValue === 'зачет' ? 1 : 0),
+      type: gradeType,
+      grade_date: new Date().toISOString().split('T')[0],
+      teacher_name: teacherName
+    };
+
+    const response = await fetch('http://localhost:8080/api/grades', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(gradeData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("Grade posted successfully:", result);
+    alert(`Оценка для ${studentName} успешно добавлена!`);
+    return result;
+  } catch (err) {
+    console.log(err);
+    alert('Ошибка при добавлении оценки');
+  }
+}
+
+function getSubjectName(): string {
+  return "Программирование";
+}
+
+function getSubjectHours(): number {
+  return 90;
+}
+
+function goBackToGroups() {
+  studentsDate.value = [];
+  selectedGroup.value = '';
+}
+
+function resetAll() {
+  teacherData.value = null;
+  groups.value = [];
+  studentsDate.value = [];
+  selectedGroup.value = '';
+  isExam.value = null;
+  studentGrades.value = {};
+}
+
+// Геттер для безопасного доступа к teacherData
+const safeTeacherData = () => {
+  return teacherData.value || {};
+};
 </script>
 
 <template>
@@ -40,11 +190,6 @@ async function setTeacher() {
           <span class="gradient-text">Информационная система преподавателей</span>
         </h1>
         <p class="hero-subtitle">Для доступа к информации о преподавателях необходимо идентифицироваться в системе</p>
-      </div>
-      <div class="hero-decoration">
-        <div class="decoration-item"></div>
-        <div class="decoration-item"></div>
-        <div class="decoration-item"></div>
       </div>
     </div>
 
@@ -88,16 +233,172 @@ async function setTeacher() {
       <div class="section-header">
         <h2 class="section-title">Найденный преподаватель</h2>
         <div class="section-actions">
-          <button @click="teacherData = null" class="action-button secondary">
+          <button @click="resetAll" class="action-button secondary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2"/>
             </svg>
             Сбросить
           </button>
+          <button v-if="isExam !== null" @click="getGroup" class="action-button primary">
+            Получить группы
+          </button>
         </div>
       </div>
 
-      <users-profile :users="teacherData" />
+      <div class="container-date__info">
+        <!-- Teacher Profile -->
+        <div class="teacher-profile-section">
+          <users-profile :users="safeTeacherData()" />
+
+          <!-- Type Selection Modal -->
+          <div v-if="isExam === null" class="type-selection-modal">
+            <div class="modal-content">
+              <h3>Выберите тип оценки</h3>
+              <div class="type-buttons">
+                <button @click="setExam(true)" class="type-button exam">
+                  <div class="type-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                            stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <span>Экзамен</span>
+                  <small>Оценка от 0 до 10</small>
+                </button>
+                <button @click="setExam(false)" class="type-button test">
+                  <div class="type-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 12L11 14L15 10M7 12H17M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                            stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                  </div>
+                  <span>Зачет</span>
+                  <small>Зачет/Незачет</small>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Current Type Badge -->
+          <div v-else class="current-type-badge">
+            <div class="badge" :class="isExam ? 'exam' : 'test'">
+              <span>{{ isExam ? 'Экзамен' : 'Зачет' }}</span>
+              <button @click="isExam = null" class="change-type-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Groups and Students Section -->
+        <div class="content-section">
+          <!-- Groups List -->
+          <div v-if="groups && groups.length > 0 && studentsDate.length === 0" class="groups-container">
+            <div class="section-header">
+              <h3 class="section-subtitle">Выберите группу</h3>
+              <span class="groups-count">{{ groups.length }} групп</span>
+            </div>
+            <div class="groups-grid">
+              <div
+                  v-for="group in groups"
+                  :key="group"
+                  class="group-card"
+                  @click="getStudentByGroup(group)"
+              >
+                <div class="group-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M17 21V19C17 17.3431 15.6569 16 14 16H10C8.34315 16 7 17.3431 7 19V21" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 11C13.6569 11 15 9.65685 15 8C15 6.34315 13.6569 5 12 5C10.3431 5 9 6.34315 9 8C9 9.65685 10.3431 11 12 11Z" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                </div>
+                <span class="group-name">{{ group }}</span>
+                <div class="group-arrow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Students List -->
+          <div v-if="studentsDate && studentsDate.length > 0" class="students-container">
+            <div class="students-header">
+              <div>
+                <h3 class="section-subtitle">Студенты группы {{ selectedGroup }}</h3>
+                <p class="students-count">{{ studentsDate.length }} студентов</p>
+              </div>
+              <button @click="goBackToGroups" class="back-button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Назад к группам
+              </button>
+            </div>
+
+            <div class="students-list">
+              <div v-for="student in studentsDate" :key="student.id" class="student-card">
+                <div class="student-info">
+                  <div class="student-name">
+                    {{ student.last_name || '' }} {{ student.name || '' }} {{ student.middle_name || '' }}
+                  </div>
+                  <div class="student-details">
+                    <span class="faculty">{{ student.faculty || '' }}</span>
+                    <span class="speciality">{{ student.speciality || '' }}</span>
+                  </div>
+                </div>
+
+                <div class="grade-section">
+                  <div class="grade-selector">
+                    <label>Оценка:</label>
+                    <select
+                        v-if="isExam"
+                        :value="studentGrades[student.id]"
+                        @change="handleExamGradeChange(student.id, $event)"
+                        class="grade-select"
+                    >
+                      <option v-for="n in 11" :key="n" :value="n-1">{{ n-1 }}</option>
+                    </select>
+                    <select
+                        v-else
+                        :value="studentGrades[student.id]"
+                        @change="handleTestGradeChange(student.id, $event)"
+                        class="grade-select"
+                    >
+                      <option value="зачет">Зачет</option>
+                      <option value="незачет">Незачет</option>
+                    </select>
+                  </div>
+
+                  <button
+                      @click="postGradeStudent(student.id, student.name)"
+                      class="add-grade-btn"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Добавить оценку
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="(!groups || groups.length === 0) && studentsDate.length === 0 && isExam !== null" class="empty-state">
+            <div class="empty-icon">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                      stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3>Нажмите "Получить группы"</h3>
+            <p>Для отображения списка доступных групп</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Features Grid -->
@@ -159,6 +460,370 @@ async function setTeacher() {
 </template>
 
 <style scoped>
+.container-date__info {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.teacher-profile-section {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+/* Type Selection Modal */
+.type-selection-modal {
+  margin-top: 20px;
+}
+
+.modal-content {
+  text-align: center;
+}
+
+.modal-content h3 {
+  color: white;
+  margin-bottom: 20px;
+  font-size: 1.25rem;
+}
+
+.type-buttons {
+  display: grid;
+  gap: 12px;
+}
+
+.type-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.type-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.type-button.exam {
+  border-color: #ff6b6b;
+}
+
+.type-button.test {
+  border-color: #51cf66;
+}
+
+.type-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.type-button small {
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+/* Current Type Badge */
+.current-type-badge {
+  margin-top: 16px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.badge.exam {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+}
+
+.badge.test {
+  background: linear-gradient(135deg, #51cf66, #40c057);
+  color: white;
+}
+
+.change-type-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.change-type-btn:hover {
+  opacity: 1;
+}
+
+/* Content Section */
+.content-section {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-height: 400px;
+}
+
+.section-subtitle {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.groups-count,
+.students-count {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.875rem;
+}
+
+/* Groups Grid */
+.groups-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.group-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.group-card:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.group-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.group-name {
+  color: white;
+  font-weight: 600;
+  flex: 1;
+}
+
+.group-arrow {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Students Section */
+.students-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.students-list {
+  display: grid;
+  gap: 16px;
+}
+
+.student-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.student-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.student-info {
+  color: white;
+  flex: 1;
+}
+
+.student-name {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+}
+
+.student-details {
+  display: flex;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+
+.faculty,
+.speciality {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.grade-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.grade-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+}
+
+.grade-select {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  min-width: 80px;
+}
+
+.grade-select option {
+  background: #2d3748;
+  color: white;
+}
+
+.add-grade-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.add-grade-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: white;
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  color: white;
+}
+
+.empty-state h3 {
+  margin-bottom: 8px;
+  font-size: 1.25rem;
+}
+
+.empty-state p {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+}
+
+.action-button.primary {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+  .container-date__info {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .student-card {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .grade-section {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .students-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
 /* Стили такие же как у студенческого компонента */
 .gradebook-container {
   min-height: 100vh;
