@@ -1,7 +1,7 @@
 <template>
   <div class="user-profile">
     <!-- Profile Header -->
-    <div class="profile-header">
+    <div class="profile-header" :class="userRole === 'teacher' ? 'profile-header__teacher' : 'profile-profile-header'">
       <div class="avatar-section">
         <div class="avatar">
           {{ getInitials }}
@@ -342,6 +342,12 @@ const formatDate = (dateString: string) => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   gap: 24px;
+}
+
+.profile-header__teacher {
+    flex-direction: column;
+    text-align: center;
+    padding: 24px;
 }
 
 .avatar-section {

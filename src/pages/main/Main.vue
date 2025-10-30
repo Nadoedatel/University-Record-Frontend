@@ -1,24 +1,23 @@
 <script setup lang="ts">
-
-import {MainHeaderMenu} from "@/widgets/MainHeaderMenu";
-import Student from "@/pages/student/Student.vue";
-import Teacher from "@/pages/teacher/Teacher.vue";
 import {ref} from "vue";
+import Search from "@/pages/search/Search.vue";
 
-const isStudent = ref<boolean | null>(null);
+const modalIsStudent = ref<boolean | null>(null);
+const isStudent = ref<boolean>(false);
 
 const setStudent = (value: boolean) => {
   isStudent.value = value;
+  modalIsStudent.value = value;
   localStorage.setItem('isStudent', value.toString());
 };
 
 const closeModal = () => {
-  isStudent.value = null;
+  modalIsStudent.value = null;
 };
 </script>
 
 <template>
-  <div v-if="isStudent === null" class="modal-overlay" @click.self="closeModal">
+  <div v-if="modalIsStudent === null" class="modal-overlay" @click.self="closeModal">
     <div class="modal-container">
       <div class="modal-header">
         <h2>Кто ты?</h2>
@@ -52,8 +51,7 @@ const closeModal = () => {
       </div>
     </div>
   </div>
-  <Student v-if="isStudent" />
-  <Teacher v-else />
+  <Search :isUser="isStudent" />
 </template>
 
 <style scoped>
@@ -165,38 +163,12 @@ const closeModal = () => {
   color: #1f2937;
 }
 
-.button-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
 .student-button:hover {
   border-color: #10b981;
 }
 
 .teacher-button:hover {
   border-color: #f59e0b;
-}
-
-.modal-footer {
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
-  text-align: center;
-}
-
-.skip-button {
-  background: none;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.skip-button:hover {
-  background: #f3f4f6;
-  color: #374151;
 }
 
 @keyframes fadeIn {

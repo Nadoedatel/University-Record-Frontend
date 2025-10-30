@@ -6,7 +6,6 @@ const name = ref<string>();
 const lastName = ref<string>();
 const middleName = ref<string>();
 const teacherData = ref<any>(null);
-const usersByID = ref<string>();
 const isExam = ref<boolean | null>(null);
 const groups = ref<string[]>([]);
 const studentsDate = ref<any[]>([]);
@@ -17,72 +16,6 @@ const setExam = (value: boolean) => {
   isExam.value = value;
   getGroup();
 };
-
-async function setTeacher() {
-  try {
-    let url: string;
-    if (name.value && lastName.value && middleName.value) {
-      url = `http://localhost:8080/api/teachers/search?name=${name.value}&last_name=${lastName.value}&middle_name=${middleName.value}`;
-    } else {
-      url = `http://localhost:8080/api/teachers/${usersByID.value}`;
-    }
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    // Преобразуем данные в обычный объект
-    teacherData.value = JSON.parse(JSON.stringify(data));
-    console.log("Teacher data:", teacherData.value);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-async function getGroup() {
-  try {
-    studentsDate.value = [];
-    selectedGroup.value = '';
-    const urlGroup = 'http://localhost:8080/api/groups';
-
-    const response = await fetch(urlGroup)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    groups.value = Array.isArray(data) ? data : [];
-    console.log("Group data", groups.value);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
-async function getStudentByGroup(groupId: string) {
-  try {
-    selectedGroup.value = groupId;
-    const urlStudentsByGroup = `http://localhost:8080/api/groups/${groupId}/students`;
-
-    const response = await fetch(urlStudentsByGroup);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    studentsDate.value = Array.isArray(data) ? data : [];
-    console.log("Student data", studentsDate.value);
-
-    // Инициализируем оценки для каждого студента
-    studentGrades.value = {};
-    studentsDate.value.forEach(student => {
-      if (student && student.id) {
-        studentGrades.value[student.id] = isExam.value ? 5 : 'зачет';
-      }
-    });
-  } catch (err) {
-    console.log(err);
-  }
-}
 
 function setStudentGrade(studentId: number, grade: number | string) {
   studentGrades.value[studentId] = grade;
@@ -102,65 +35,6 @@ function handleTestGradeChange(studentId: number, event: Event) {
   }
 }
 
-async function postGradeStudent(studentId: number, studentName: string) {
-  try {
-    const gradeValue = studentGrades.value[studentId];
-    const gradeType = isExam.value ? 'exam' : 'test';
-
-    // Валидация оценки
-    if (isExam.value) {
-      const numericGrade = gradeValue as number;
-      if (numericGrade < 0 || numericGrade > 10) {
-        alert('Оценка должна быть от 0 до 10');
-        return;
-      }
-    }
-
-    // Безопасное получение имени преподавателя
-    const teacherName = teacherData.value
-        ? `${teacherData.value.last_name || ''}`.trim()
-        : 'Преподаватель';
-
-    const gradeData = {
-      student_id: studentId,
-      subject_name: getSubjectName(),
-      subject_hours: getSubjectHours(),
-      grade_value: isExam.value ? (gradeValue as number) : (gradeValue === 'зачет' ? 1 : 0),
-      type: gradeType,
-      grade_date: new Date().toISOString().split('T')[0],
-      teacher_name: teacherName
-    };
-
-    const response = await fetch('http://localhost:8080/api/grades', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(gradeData)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log("Grade posted successfully:", result);
-    alert(`Оценка для ${studentName} успешно добавлена!`);
-    return result;
-  } catch (err) {
-    console.log(err);
-    alert('Ошибка при добавлении оценки');
-  }
-}
-
-function getSubjectName(): string {
-  return "Программирование";
-}
-
-function getSubjectHours(): number {
-  return 90;
-}
-
 function goBackToGroups() {
   studentsDate.value = [];
   selectedGroup.value = '';
@@ -175,61 +49,15 @@ function resetAll() {
   studentGrades.value = {};
 }
 
-// Геттер для безопасного доступа к teacherData
-const safeTeacherData = () => {
-  return teacherData.value || {};
-};
+defineProps({
+  infoTeacher: Object,
+})
 </script>
 
 <template>
   <div class="gradebook-container">
-    <!-- Hero Section -->
-    <div class="hero-section">
-      <div class="hero-content">
-        <h1 class="hero-title">
-          <span class="gradient-text">Информационная система преподавателей</span>
-        </h1>
-        <p class="hero-subtitle">Для доступа к информации о преподавателях необходимо идентифицироваться в системе</p>
-      </div>
-    </div>
-
-    <!-- Search Section -->
-    <div class="search-section">
-      <div class="search-card">
-        <div class="search-header">
-          <div class="search-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M21 21L16.514 16.506L21 21ZM19 10.5C19 15.194 15.194 19 10.5 19C5.806 19 2 15.194 2 10.5C2 5.806 5.806 2 10.5 2C15.194 2 19 5.806 19 10.5Z"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <h2 class="search-title">Поиск преподавателя</h2>
-          <p class="search-description">Введите идентификатор преподавателя для получения информации</p>
-        </div>
-
-        <div class="search-input-group">
-          <div class="input-wrapper">
-            <input
-                v-model="usersByID"
-                type="text"
-                placeholder="Введите ID преподавателя..."
-                class="search-input"
-                @keypress.enter="setTeacher"
-            />
-            <div class="input-decoration"></div>
-          </div>
-          <button @click="setTeacher" class="search-button">
-            <span>Найти</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Teacher Info Section -->
-    <div v-if="teacherData" class="teacher-section">
+    <div v-if="infoTeacher" class="teacher-section">
       <div class="section-header">
         <h2 class="section-title">Найденный преподаватель</h2>
         <div class="section-actions">
@@ -248,7 +76,7 @@ const safeTeacherData = () => {
       <div class="container-date__info">
         <!-- Teacher Profile -->
         <div class="teacher-profile-section">
-          <users-profile :users="safeTeacherData()" />
+          <users-profile :users="infoTeacher" />
 
           <!-- Type Selection Modal -->
           <div v-if="isExam === null" class="type-selection-modal">
@@ -831,181 +659,8 @@ const safeTeacherData = () => {
   padding: 20px;
 }
 
-/* Hero Section */
-.hero-section {
-  text-align: center;
-  padding: 60px 20px 40px;
-  position: relative;
-  overflow: hidden;
-}
-
-.hero-content {
-  max-width: 600px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 2;
-}
-
-.hero-title {
-  font-size: 3rem;
-  font-weight: 800;
-  margin-bottom: 16px;
-  line-height: 1.1;
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, #fff 0%, #d1fae5 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero-subtitle {
-  font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 0;
-}
-
-.hero-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-}
-
-.decoration-item {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.decoration-item:nth-child(1) {
-  width: 100px;
-  height: 100px;
-  top: 10%;
-  left: 10%;
-}
-
-.decoration-item:nth-child(2) {
-  width: 150px;
-  height: 150px;
-  top: 60%;
-  right: 10%;
-}
-
-.decoration-item:nth-child(3) {
-  width: 80px;
-  height: 80px;
-  bottom: 20%;
-  left: 20%;
-}
-
-/* Search Section */
-.search-section {
-  max-width: 600px;
-  margin: 0 auto 60px;
-}
-
-.search-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.search-header {
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.search-icon {
-  width: 60px;
-  height: 60px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 20px;
-  color: white;
-}
-
-.search-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 8px;
-}
-
-.search-description {
-  color: #6b7280;
-  margin-bottom: 0;
-}
-
-.search-input-group {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.input-wrapper {
-  flex: 1;
-  position: relative;
-}
-
-.search-input {
-  width: 100%;
-  padding: 16px 20px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: white;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.input-decoration {
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 2px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.3s ease;
-}
-
 .search-input:focus + .input-decoration {
   width: 100%;
-}
-
-.search-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.search-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
 }
 
 /* Teacher Section */
@@ -1110,18 +765,6 @@ const safeTeacherData = () => {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .hero-title {
-    font-size: 2rem;
-  }
-
-  .search-input-group {
-    flex-direction: column;
-  }
-
-  .search-button {
-    width: 100%;
-    justify-content: center;
-  }
 
   .section-header {
     flex-direction: column;
@@ -1139,12 +782,5 @@ const safeTeacherData = () => {
     padding: 10px;
   }
 
-  .hero-section {
-    padding: 40px 10px 20px;
-  }
-
-  .search-card {
-    padding: 24px;
-  }
 }
 </style>
