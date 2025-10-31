@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {ref} from "vue";
 import {UsersProfile} from "@/widgets/UsersProfile";
+import {getGroup} from "@/features/fetchGroup.ts";
+import {postGradeStudent} from "@/features/fetchGradeForStudent.ts";
+import {getStudentByGroup} from "@/features/fetchStudentByGroup.ts";
 
-const name = ref<string>();
-const lastName = ref<string>();
-const middleName = ref<string>();
 const teacherData = ref<any>(null);
 const isExam = ref<boolean | null>(null);
 const groups = ref<string[]>([]);
@@ -14,8 +14,13 @@ const studentGrades = ref<{[key: number]: number | string}>({});
 
 const setExam = (value: boolean) => {
   isExam.value = value;
-  getGroup();
+  getGroup(studentsDate, selectedGroup, groups);
 };
+
+function handleStudentByGroup(groupId: string) {
+  selectedGroup.value = groupId;
+  getStudentByGroup(groupId, studentsDate, groups, studentGrades, isExam)
+}
 
 function setStudentGrade(studentId: number, grade: number | string) {
   studentGrades.value[studentId] = grade;
@@ -49,25 +54,40 @@ function resetAll() {
   studentGrades.value = {};
 }
 
-defineProps({
-  infoTeacher: Object,
+const props = defineProps({
+  infoTeacher: {
+    type: Object,
+    required: true,
+  }
 })
+
+function handlePostGrade(studentId: number, studentName: string) {
+  postGradeStudent(studentId, studentName, studentGrades, isExam, props.infoTeacher);
+}
+
+const emit = defineEmits<{
+  reset: []
+}>()
+
+function handleReset() {
+  emit("reset")
+}
 </script>
 
 <template>
-  <div class="gradebook-container">
+  <div>
     <!-- Teacher Info Section -->
     <div v-if="infoTeacher" class="teacher-section">
       <div class="section-header">
         <h2 class="section-title">Найденный преподаватель</h2>
         <div class="section-actions">
-          <button @click="resetAll" class="action-button secondary">
+          <button @click="handleReset" class="action-button secondary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2"/>
             </svg>
             Сбросить
           </button>
-          <button v-if="isExam !== null" @click="getGroup" class="action-button primary">
+          <button v-if="isExam !== null" @click="getGroup(studentsDate, selectedGroup, groups)" class="action-button primary">
             Получить группы
           </button>
         </div>
@@ -133,7 +153,7 @@ defineProps({
                   v-for="group in groups"
                   :key="group"
                   class="group-card"
-                  @click="getStudentByGroup(group)"
+                  @click="handleStudentByGroup(group)"
               >
                 <div class="group-icon">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -201,7 +221,7 @@ defineProps({
                   </div>
 
                   <button
-                      @click="postGradeStudent(student.id, student.name)"
+                      @click="handlePostGrade(student.id, student.name)"
                       class="add-grade-btn"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -225,62 +245,6 @@ defineProps({
             <h3>Нажмите "Получить группы"</h3>
             <p>Для отображения списка доступных групп</p>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Features Grid -->
-    <div v-else class="features-section">
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 11C13.1046 11 14 10.1046 14 9C14 7.89543 13.1046 7 12 7C10.8954 7 10 7.89543 10 9C10 10.1046 10.8954 11 12 11Z"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M17 21V19C17 17.3431 15.6569 16 14 16H10C8.34315 16 7 17.3431 7 19V21"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M8 5V3C8 1.89543 8.89543 1 10 1H14C15.1046 1 16 1.89543 16 3V5"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M21 12L19 12"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M5 12L3 12"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M18.364 5.63604L16.95 7.05005"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M7.05029 7.05005L5.63628 5.63604"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M18.364 18.364L16.95 16.95"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M7.05029 16.95L5.63628 18.364"
-                    stroke="currentColor" stroke-width="2"/>
-            </svg>
-          </div>
-          <h3>Профессиональные данные</h3>
-          <p>Полная информация о квалификации и специализации</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"
-                    stroke="currentColor" stroke-width="2"/>
-              <path d="M19.4 15C19.2669 15.3017 19.1338 15.6034 19.0007 15.9051C18.5299 16.9255 18.0589 17.9458 17.5881 18.9662C17.281 19.6298 16.974 20.2933 16.6669 20.9569C16.295 21.7631 15.4461 22.2609 14.524 22.2609H9.47598C8.55392 22.2609 7.70498 21.7631 7.33308 20.9569C7.02606 20.2933 6.71904 19.6298 6.41192 18.9662C5.94108 17.9458 5.47015 16.9255 4.99931 15.9051C4.86619 15.6034 4.73308 15.3017 4.59996 15C4.73308 14.6983 4.86619 14.3966 4.99931 14.0949C5.47015 13.0745 5.94108 12.0542 6.41192 11.0338C6.71904 10.3702 7.02606 9.70672 7.33308 9.04312C7.70498 8.23694 8.55392 7.73914 9.47598 7.73914H14.524C15.4461 7.73914 16.295 8.23694 16.6669 9.04312C16.974 9.70672 17.281 10.3702 17.5881 11.0338C18.0589 12.0542 18.5299 13.0745 19.0007 14.0949C19.1338 14.3966 19.2669 14.6983 19.4 15Z"
-                    stroke="currentColor" stroke-width="2"/>
-            </svg>
-          </div>
-          <h3>Академическая информация</h3>
-          <p>Ученая степень, кафедра и преподавательский стаж</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-                    stroke="currentColor" stroke-width="2"/>
-            </svg>
-          </div>
-          <h3>Проверенные данные</h3>
-          <p>Вся информация проходит регулярную проверку и актуализацию</p>
         </div>
       </div>
     </div>

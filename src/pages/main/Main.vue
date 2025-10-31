@@ -14,6 +14,10 @@ const setStudent = (value: boolean) => {
 const closeModal = () => {
   modalIsStudent.value = null;
 };
+
+function handleChangeUser() {
+  modalIsStudent.value = null;
+}
 </script>
 
 <template>
@@ -51,7 +55,7 @@ const closeModal = () => {
       </div>
     </div>
   </div>
-  <Search :isUser="isStudent" />
+  <Search :isUser="isStudent" @change-user="handleChangeUser"/>
 </template>
 
 <style scoped>

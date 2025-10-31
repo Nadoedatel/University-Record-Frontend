@@ -1,6 +1,13 @@
-async function getStudentByGroup(groupId: string) {
+import type {Ref} from "vue";
+
+export async function getStudentByGroup(
+    groupId: string,
+    studentsDate: Ref<any[]>,
+    groups: Ref<string[]>,
+    studentGrades: Ref<{[key: number]: number | string}>,
+    isExam: Ref<boolean | null>
+) {
     try {
-        selectedGroup.value = groupId;
         const urlStudentsByGroup = `http://localhost:8080/api/groups/${groupId}/students`;
 
         const response = await fetch(urlStudentsByGroup);

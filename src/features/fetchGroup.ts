@@ -1,4 +1,10 @@
-async function getGroup() {
+import type {Ref} from "vue";
+
+export async function getGroup(
+    studentsDate: Ref<any[]>,
+    selectedGroup: Ref<string>,
+    groups: Ref<string[]>
+) {
     try {
         studentsDate.value = [];
         selectedGroup.value = '';

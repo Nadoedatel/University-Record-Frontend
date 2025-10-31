@@ -1,4 +1,12 @@
-async function postGradeStudent(studentId: number, studentName: string) {
+import type {Ref} from "vue";
+
+export async function postGradeStudent(
+    studentId: number,
+    studentName: string,
+    studentGrades: Ref<{[key: number]: number | string}>,
+    isExam: Ref<boolean | null>,
+    teacherData: any
+) {
     try {
         const gradeValue = studentGrades.value[studentId];
         const gradeType = isExam.value ? 'exam' : 'test';
@@ -13,9 +21,11 @@ async function postGradeStudent(studentId: number, studentName: string) {
         }
 
         // Безопасное получение имени преподавателя
-        const teacherName = teacherData.value
-            ? `${teacherData.value.last_name || ''}`.trim()
+        const teacherName = teacherData
+            ? `${teacherData.last_name || ''}`.trim()
             : 'Преподаватель';
+
+        console.log(teacherData);
 
         const gradeData = {
             student_id: studentId,
