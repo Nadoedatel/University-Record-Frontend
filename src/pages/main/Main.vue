@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref} from "vue";
-import Search from "@/pages/search/Search.vue";
+import Search from "@/widgets/search/Search.vue";
 
 const modalIsStudent = ref<boolean | null>(null);
 const isStudent = ref<boolean>(false);

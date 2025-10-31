@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import {UsersProfile} from "@/widgets/UsersProfile";
+import {UserProfile} from "@/widgets/user-profile";
+import type {IStudent} from "@/entities/student/model/types.ts";
 
-defineProps({
-  infoStudent: {
-    type: Object,
-    required: true,
-  }
-})
+defineProps<{
+  infoStudent: IStudent;
+}>();
 
 const emit = defineEmits<{
   reset: []
@@ -33,7 +31,7 @@ function handleReset() {
         </div>
       </div>
 
-      <users-profile :users="infoStudent" />
+      <user-profile :users="infoStudent" />
     </div>
   </div>
 </template>

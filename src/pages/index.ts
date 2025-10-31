@@ -11,12 +11,12 @@ const router = createRouter({
     {
       path: '/student',
       name: 'student',
-      component: () => import('./student')
+      component: () => import('../widgets/student')
     },
     {
       path: '/teacher',
       name: 'teacher',
-      component: () => import('./teacher')
+      component: () => import('../widgets/teacher')
     }
   ],
 })

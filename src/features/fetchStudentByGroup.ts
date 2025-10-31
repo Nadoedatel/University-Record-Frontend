@@ -1,8 +1,9 @@
 import type {Ref} from "vue";
+import type {IStudent} from "@/entities/student/model/types.ts";
 
 export async function getStudentByGroup(
     groupId: string,
-    studentsDate: Ref<any[]>,
+    studentsDate: Ref<IStudent[]>,
     groups: Ref<string[]>,
     studentGrades: Ref<{[key: number]: number | string}>,
     isExam: Ref<boolean | null>
@@ -21,8 +22,8 @@ export async function getStudentByGroup(
         // Инициализируем оценки для каждого студента
         studentGrades.value = {};
         studentsDate.value.forEach(student => {
-            if (student && student.id) {
-                studentGrades.value[student.id] = isExam.value ? 5 : 'зачет';
+            if (student && student.ID) {
+                studentGrades.value[student.ID] = isExam.value ? 5 : 'зачет';
             }
         });
     } catch (err) {

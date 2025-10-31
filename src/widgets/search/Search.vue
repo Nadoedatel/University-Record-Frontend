@@ -1,13 +1,15 @@
 <script setup lang="ts">
 
-import Student from "@/pages/student/Student.vue";
-import Teacher from "@/pages/teacher/Teacher.vue";
+import Student from "@/widgets/student/Student.vue";
+import Teacher from "@/widgets/teacher/Teacher.vue";
 import {ref} from "vue";
 import {fetchStudent} from "@/features/fetchStudents.ts";
 import {fetchTeacher} from "@/features/fetchTeacher.ts";
+import type {IStudent} from "@/entities/student/model/types.ts";
+import type {ITeacher} from "@/entities/teacher/model/types.ts";
 
 const usersByID = ref<string>();
-const userDate = ref<null>();
+const userDate = ref<ITeacher | IStudent | null>();
 
 function handleReset() {
   userDate.value = null;
@@ -15,7 +17,7 @@ function handleReset() {
 
 async function setStudent() {
   try {
-    userDate.value = await fetchStudent(undefined, undefined, undefined, usersByID.value)
+    userDate.value = await fetchStudent(undefined, undefined, undefined, usersByID.value) as IStudent;
     console.log("Student", userDate.value)
   } catch (err) {
     console.log(err);
@@ -24,7 +26,7 @@ async function setStudent() {
 
 async function setTeacher() {
   try {
-    userDate.value = await fetchTeacher(undefined, undefined, undefined, usersByID.value)
+    userDate.value = await fetchTeacher(undefined, undefined, undefined, usersByID.value) as ITeacher;
     console.log("Teacher",userDate.value)
   } catch (err) {
     console.log(err);
@@ -91,7 +93,7 @@ function handleChangeUser() {
                 type="text"
                 :placeholder="isUser ? 'Введите ID студента' : 'Введите ID преподавателя'"
                 class="search-input"
-                @keypress.enter="isUser ? setStudent() : setTeacher()"
+                @keydown.enter="isUser ? setStudent() : setTeacher()"
             />
             <div class="input-decoration"></div>
           </div>

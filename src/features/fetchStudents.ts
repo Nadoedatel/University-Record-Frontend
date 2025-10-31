@@ -1,3 +1,5 @@
+import type {IStudent} from "@/entities/student/model/types.ts";
+
 export async function fetchStudent(name?:string, lastName?:string, middleName?:string, usersByID?:string) {
     try {
         let url: string;
@@ -12,7 +14,7 @@ export async function fetchStudent(name?:string, lastName?:string, middleName?:s
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data: IStudent = await response.json();
         console.log("Student data:", data);
         return data;
     } catch (err) {

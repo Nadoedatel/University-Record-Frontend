@@ -1,3 +1,5 @@
+import type {ITeacher} from "@/entities/teacher/model/types.ts";
+
 export async function fetchTeacher(name?: string, lastName?:string, middleName?:string, usersByID?:string) {
     try {
         let url: string;
@@ -14,7 +16,7 @@ export async function fetchTeacher(name?: string, lastName?:string, middleName?:
 
         const data = await response.json();
         // Преобразуем данные в обычный объект
-        const teacherData = JSON.parse(JSON.stringify(data));
+        const teacherData: ITeacher = JSON.parse(JSON.stringify(data));
         console.log("Teacher data:", teacherData);
         return teacherData;
     } catch (err) {

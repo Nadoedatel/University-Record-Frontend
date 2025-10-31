@@ -1,21 +1,30 @@
 <script setup lang="ts">
 import {ref} from "vue";
-import {UsersProfile} from "@/widgets/UsersProfile";
+import {UserProfile} from "@/widgets/user-profile";
 import {getGroup} from "@/features/fetchGroup.ts";
 import {postGradeStudent} from "@/features/fetchGradeForStudent.ts";
 import {getStudentByGroup} from "@/features/fetchStudentByGroup.ts";
+import type {ITeacher} from "@/entities/teacher/model/types.ts";
+import type {IStudent} from "@/entities/student/model/types.ts";
 
-const teacherData = ref<any>(null);
 const isExam = ref<boolean | null>(null);
 const groups = ref<string[]>([]);
-const studentsDate = ref<any[]>([]);
+const studentsDate = ref<IStudent[]>([]);
 const selectedGroup = ref<string>('');
 const studentGrades = ref<{[key: number]: number | string}>({});
 
 const setExam = (value: boolean) => {
   isExam.value = value;
-  getGroup(studentsDate, selectedGroup, groups);
+  handleGetGroups()
 };
+
+async function handleGetGroups() {
+  goBackToGroups()
+
+  groups.value = await getGroup();
+  console.log("Group data", groups.value);
+}
+
 
 function handleStudentByGroup(groupId: string) {
   selectedGroup.value = groupId;
@@ -45,21 +54,9 @@ function goBackToGroups() {
   selectedGroup.value = '';
 }
 
-function resetAll() {
-  teacherData.value = null;
-  groups.value = [];
-  studentsDate.value = [];
-  selectedGroup.value = '';
-  isExam.value = null;
-  studentGrades.value = {};
-}
-
-const props = defineProps({
-  infoTeacher: {
-    type: Object,
-    required: true,
-  }
-})
+const props = defineProps<{
+  infoTeacher: ITeacher;
+}>()
 
 function handlePostGrade(studentId: number, studentName: string) {
   postGradeStudent(studentId, studentName, studentGrades, isExam, props.infoTeacher);
@@ -87,7 +84,7 @@ function handleReset() {
             </svg>
             Сбросить
           </button>
-          <button v-if="isExam !== null" @click="getGroup(studentsDate, selectedGroup, groups)" class="action-button primary">
+          <button v-if="isExam !== null" @click="handleGetGroups" class="action-button primary">
             Получить группы
           </button>
         </div>
@@ -96,7 +93,7 @@ function handleReset() {
       <div class="container-date__info">
         <!-- Teacher Profile -->
         <div class="teacher-profile-section">
-          <users-profile :users="infoTeacher" />
+          <user-profile :users="infoTeacher" />
 
           <!-- Type Selection Modal -->
           <div v-if="isExam === null" class="type-selection-modal">

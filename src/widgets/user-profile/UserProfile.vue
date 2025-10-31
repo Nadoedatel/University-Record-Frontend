@@ -1,3 +1,102 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+
+const props = defineProps({
+  users: {
+    type: Object,
+    required: true
+  }
+});
+
+// Определяем роль пользователя на основе структуры данных
+const userRole = computed(() => {
+  return props.users.grades || props.users.faculty || props.users.speciality ? 'student' : 'teacher';
+});
+
+// Полное имя пользователя
+const fullName = computed(() => {
+  const { last_name, name, middle_name } = props.users;
+  return [last_name, name, middle_name].filter(Boolean).join(' ');
+});
+
+// Инициалы для аватара
+const getInitials = computed(() => {
+  const { last_name, name, middle_name } = props.users;
+  const first = name?.[0] || '';
+  const last = last_name?.[0] || '';
+  return (first + last).toUpperCase();
+});
+
+// Статистика по оценкам (для студентов)
+const totalSubjects = computed(() => {
+  return new Set(props.users.grades?.map((grade: any) => grade.subject_name)).size;
+});
+
+const averageGrade = computed(() => {
+  if (!props.users.grades?.length) return 0;
+  const sum = props.users.grades.reduce((acc: number, grade: any) => acc + grade.grade_value, 0);
+  return (sum / props.users.grades.length).toFixed(1);
+});
+
+// Статистика по предметам (для преподавателей)
+const totalHours = computed(() => {
+  if (!props.users.subjects?.length) return 0;
+  return props.users.subjects.reduce((acc: number, subject: any) => acc + (subject.hours_per_week || 0), 0);
+});
+
+// Проверка наличия дополнительной информации
+const hasAdditionalInfo = computed(() => {
+  return props.users.student_id || props.users.teacher_id || props.users.group ||
+      props.users.position || props.users.employment_date ||
+      props.users.email || props.users.phone;
+});
+
+// Проверка наличия любых данных
+const hasAnyData = computed(() => {
+  return (props.users.grades && props.users.grades.length > 0) ||
+      (props.users.subjects && props.users.subjects.length > 0) ||
+      hasAdditionalInfo.value;
+});
+
+// Вспомогательные функции
+const getGradeClass = (grade: number) => {
+  if (grade >= 8) return 'excellent';
+  if (grade >= 6) return 'good';
+  if (grade >= 4) return 'satisfactory';
+  return 'unsatisfactory';
+};
+
+const getGradeType = (type: string) => {
+  const types: { [key: string]: string } = {
+    'exam': 'Экзамен',
+    'test': 'Зачет',
+    'coursework': 'Курсовая работа',
+    'practice': 'Практика'
+  };
+  return types[type] || type;
+};
+
+const getSubjectType = (type: string) => {
+  const types: { [key: string]: string } = {
+    'lecture': 'Лекция',
+    'seminar': 'Семинар',
+    'lab': 'Лабораторная работа',
+    'practice': 'Практика'
+  };
+  return types[type] || type;
+};
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+</script>
+
 <template>
   <div class="user-profile">
     <!-- Profile Header -->
@@ -226,105 +325,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue';
-
-const props = defineProps({
-  users: {
-    type: Object,
-    required: true
-  }
-});
-
-// Определяем роль пользователя на основе структуры данных
-const userRole = computed(() => {
-  return props.users.grades || props.users.faculty || props.users.speciality ? 'student' : 'teacher';
-});
-
-// Полное имя пользователя
-const fullName = computed(() => {
-  const { last_name, name, middle_name } = props.users;
-  return [last_name, name, middle_name].filter(Boolean).join(' ');
-});
-
-// Инициалы для аватара
-const getInitials = computed(() => {
-  const { last_name, name, middle_name } = props.users;
-  const first = name?.[0] || '';
-  const last = last_name?.[0] || '';
-  return (first + last).toUpperCase();
-});
-
-// Статистика по оценкам (для студентов)
-const totalSubjects = computed(() => {
-  return new Set(props.users.grades?.map((grade: any) => grade.subject_name)).size;
-});
-
-const averageGrade = computed(() => {
-  if (!props.users.grades?.length) return 0;
-  const sum = props.users.grades.reduce((acc: number, grade: any) => acc + grade.grade_value, 0);
-  return (sum / props.users.grades.length).toFixed(1);
-});
-
-// Статистика по предметам (для преподавателей)
-const totalHours = computed(() => {
-  if (!props.users.subjects?.length) return 0;
-  return props.users.subjects.reduce((acc: number, subject: any) => acc + (subject.hours_per_week || 0), 0);
-});
-
-// Проверка наличия дополнительной информации
-const hasAdditionalInfo = computed(() => {
-  return props.users.student_id || props.users.teacher_id || props.users.group ||
-      props.users.position || props.users.employment_date ||
-      props.users.email || props.users.phone;
-});
-
-// Проверка наличия любых данных
-const hasAnyData = computed(() => {
-  return (props.users.grades && props.users.grades.length > 0) ||
-      (props.users.subjects && props.users.subjects.length > 0) ||
-      hasAdditionalInfo.value;
-});
-
-// Вспомогательные функции
-const getGradeClass = (grade: number) => {
-  if (grade >= 8) return 'excellent';
-  if (grade >= 6) return 'good';
-  if (grade >= 4) return 'satisfactory';
-  return 'unsatisfactory';
-};
-
-const getGradeType = (type: string) => {
-  const types: { [key: string]: string } = {
-    'exam': 'Экзамен',
-    'test': 'Зачет',
-    'coursework': 'Курсовая работа',
-    'practice': 'Практика'
-  };
-  return types[type] || type;
-};
-
-const getSubjectType = (type: string) => {
-  const types: { [key: string]: string } = {
-    'lecture': 'Лекция',
-    'seminar': 'Семинар',
-    'lab': 'Лабораторная работа',
-    'practice': 'Практика'
-  };
-  return types[type] || type;
-};
-
-const formatDate = (dateString: string) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-};
-</script>
 
 <style scoped>
 .user-profile {
