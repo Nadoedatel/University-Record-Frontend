@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import {ref} from "vue";
+import {onMounted, ref} from "vue";
 import {UserProfile} from "@/widgets/user-profile";
 import {getGroup} from "@/features/fetchGroup.ts";
 import {postGradeStudent} from "@/features/fetchGradeForStudent.ts";
 import {getStudentByGroup} from "@/features/fetchStudentByGroup.ts";
 import type {ITeacher} from "@/entities/teacher/model/types.ts";
 import type {IStudent} from "@/entities/student/model/types.ts";
+import {getSubjects} from "@/features/fetchSubjects.ts";
 
 const isExam = ref<boolean | null>(null);
 const groups = ref<string[]>([]);
 const studentsDate = ref<IStudent[]>([]);
 const selectedGroup = ref<string>('');
 const studentGrades = ref<{[key: number]: number | string}>({});
+const subjects = ref<any[]>([]);
+const selectedSubject = ref<any>(null);
 
 const setExam = (value: boolean) => {
   isExam.value = value;
@@ -59,7 +62,18 @@ const props = defineProps<{
 }>()
 
 function handlePostGrade(studentId: number, studentName: string) {
-  postGradeStudent(studentId, studentName, studentGrades, isExam, props.infoTeacher);
+  if (!selectedSubject.value) {
+    alert('Выберите дисциплину');
+    return;
+  }
+  postGradeStudent(
+      studentId,
+      studentName,
+      studentGrades,
+      isExam,
+      props.infoTeacher,
+      selectedSubject.value
+  );
 }
 
 const emit = defineEmits<{
@@ -69,6 +83,10 @@ const emit = defineEmits<{
 function handleReset() {
   emit("reset")
 }
+
+onMounted(async () => {
+  subjects.value = await getSubjects();
+})
 </script>
 
 <template>
@@ -175,12 +193,26 @@ function handleReset() {
                 <h3 class="section-subtitle">Студенты группы {{ selectedGroup }}</h3>
                 <p class="students-count">{{ studentsDate.length }} студентов</p>
               </div>
-              <button @click="goBackToGroups" class="back-button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Назад к группам
-              </button>
+              <div class="subject-selector">
+                <div>
+                  <select v-model="selectedSubject" class="subject-select">
+                    <option :value="null">Выберите дисциплину</option>
+                    <option
+                        v-for="subject in subjects"
+                        :key="subject.id"
+                        :value="subject"
+                    >
+                      {{ subject.name }} ({{ subject.hours }} ч.)
+                    </option>
+                  </select>
+                </div>
+                <button @click="goBackToGroups" class="back-button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Назад к группам
+                </button>
+              </div>
             </div>
 
             <div class="students-list">
@@ -249,6 +281,27 @@ function handleReset() {
 </template>
 
 <style scoped>
+/* Discipline */
+.subject-selector {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.subject-select {
+  max-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.subject-select option {
+  background: #2d3748;
+  color: white;
+}
+
 .container-date__info {
   display: grid;
   grid-template-columns: 400px 1fr;
@@ -439,6 +492,7 @@ function handleReset() {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
+  gap: 8px;
 }
 
 .back-button {

@@ -5,7 +5,8 @@ export async function postGradeStudent(
     studentName: string,
     studentGrades: Ref<{[key: number]: number | string}>,
     isExam: Ref<boolean | null>,
-    teacherData: any
+    teacherData: any,
+    selectedSubject: any
 ) {
     try {
         const gradeValue = studentGrades.value[studentId];
@@ -29,8 +30,8 @@ export async function postGradeStudent(
 
         const gradeData = {
             student_id: studentId,
-            subject_name: getSubjectName(),
-            subject_hours: getSubjectHours(),
+            subject_name: selectedSubject.name,
+            subject_hours: selectedSubject.hours,
             grade_value: isExam.value ? (gradeValue as number) : (gradeValue === 'зачет' ? 1 : 0),
             type: gradeType,
             grade_date: new Date().toISOString().split('T')[0],
@@ -57,12 +58,4 @@ export async function postGradeStudent(
         console.log(err);
         alert('Ошибка при добавлении оценки');
     }
-}
-
-function getSubjectName(): string {
-    return "Программирование";
-}
-
-function getSubjectHours(): number {
-    return 90;
 }

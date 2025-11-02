@@ -1,11 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import {computed, ref} from 'vue';
+import type {IGrade} from "@/entities/grade/model/types.ts";
 
 const props = defineProps({
   users: {
     type: Object,
     required: true
   }
+});
+
+// Реактивная переменная для фильтра оценок
+const gradeFilter = ref<'all' | 'exam' | 'test'>('all');
+
+// Функция для установки фильтра
+function setGradeFilter(filter: 'all' | 'exam' | 'test') {
+  gradeFilter.value = filter;
+}
+
+// Отфильтрованные оценки
+const filteredGrades = computed(() => {
+  if (!props.users.grades) return [];
+
+  if (gradeFilter.value === 'all') {
+    return props.users.grades;
+  }
+
+  return props.users.grades.filter((grade: IGrade) => grade.type === gradeFilter.value);
 });
 
 // Определяем роль пользователя на основе структуры данных
@@ -29,13 +49,16 @@ const getInitials = computed(() => {
 
 // Статистика по оценкам (для студентов)
 const totalSubjects = computed(() => {
-  return new Set(props.users.grades?.map((grade: any) => grade.subject_name)).size;
+  return new Set(filteredGrades.value.map((grade: any) => grade.subject_name)).size;
 });
 
 const averageGrade = computed(() => {
-  if (!props.users.grades?.length) return 0;
-  const sum = props.users.grades.reduce((acc: number, grade: any) => acc + grade.grade_value, 0);
-  return (sum / props.users.grades.length).toFixed(1);
+  if (!filteredGrades.value.length) return 0;
+  const examGrades = filteredGrades.value.filter((grade: any) => grade.type === 'exam');
+  if (examGrades.length === 0) return 0;
+
+  const sum = examGrades.reduce((acc: number, grade: any) => acc + grade.grade_value, 0);
+  return (sum / examGrades.length).toFixed(1);
 });
 
 // Статистика по предметам (для преподавателей)
@@ -58,20 +81,31 @@ const hasAnyData = computed(() => {
       hasAdditionalInfo.value;
 });
 
+function formatGradeValue(grade: IGrade): string {
+  if (grade.type === 'exam') {
+    return grade.grade_value.toString();
+  } else {
+    return grade.grade_value === 1 ? 'Зачет' : 'Незачет';
+  }
+}
+
 // Вспомогательные функции
-const getGradeClass = (grade: number) => {
-  if (grade >= 8) return 'excellent';
-  if (grade >= 6) return 'good';
-  if (grade >= 4) return 'satisfactory';
-  return 'unsatisfactory';
-};
+function getGradeClass(grade: IGrade): string {
+  if (grade.type === 'exam') {
+    const numericGrade = Number(grade.grade_value);
+    if (numericGrade >= 8) return 'excellent';
+    if (numericGrade >= 6) return 'good';
+    if (numericGrade >= 4) return 'satisfactory';
+    return 'unsatisfactory';
+  } else {
+    return grade.grade_value === 1 ? 'excellent' : 'unsatisfactory';
+  }
+}
 
 const getGradeType = (type: string) => {
   const types: { [key: string]: string } = {
     'exam': 'Экзамен',
     'test': 'Зачет',
-    'coursework': 'Курсовая работа',
-    'practice': 'Практика'
   };
   return types[type] || type;
 };
@@ -172,25 +206,59 @@ const formatDate = (dateString: string) => {
     <!-- Grades Section (for students) -->
     <div v-if="users.grades && users.grades.length > 0" class="grades-section">
       <div class="section-header">
-        <h2>Успеваемость</h2>
-        <div class="grades-stats">
-          <div class="stat-item">
-            <span class="stat-value">{{ totalSubjects }}</span>
-            <span class="stat-label">предметов</span>
+        <div class="section-title-row">
+          <h2>Успеваемость</h2>
+          <div class="grades-stats">
+            <div class="stat-item">
+              <span class="stat-value">{{ totalSubjects }}</span>
+              <span class="stat-label">предметов</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">{{ averageGrade }}</span>
+              <span class="stat-label">средний балл</span>
+            </div>
           </div>
-          <div class="stat-item">
-            <span class="stat-value">{{ averageGrade }}</span>
-            <span class="stat-label">средний балл</span>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="grades-filters">
+          <div class="filter-buttons">
+            <button
+                @click="setGradeFilter('all')"
+                class="filter-btn"
+                :class="{ active: gradeFilter === 'all' }"
+            >
+              Все оценки
+            </button>
+            <button
+                @click="setGradeFilter('exam')"
+                class="filter-btn"
+                :class="{ active: gradeFilter === 'exam' }"
+            >
+              Экзамены
+            </button>
+            <button
+                @click="setGradeFilter('test')"
+                class="filter-btn"
+                :class="{ active: gradeFilter === 'test' }"
+            >
+              Зачеты
+            </button>
           </div>
         </div>
       </div>
 
       <div class="grades-grid">
-        <div v-for="(grade, index) in users.grades" :key="index" class="grade-card" :class="getGradeClass(grade.grade_value)">
+        <div
+            v-for="(grade, index) in filteredGrades"
+            :key="index"
+            class="grade-card"
+            :class="getGradeClass(grade)"
+        >
           <div class="grade-header">
             <h3 class="subject-name">{{ grade.subject_name }}</h3>
-            <div class="grade-badge" :class="getGradeClass(grade.grade_value)">
-              {{ grade.grade_value }}
+            <div class="grade-badge" :class="getGradeClass(grade)">
+              {{ formatGradeValue(grade) }}
             </div>
           </div>
 
@@ -216,6 +284,18 @@ const formatDate = (dateString: string) => {
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Сообщение если нет оценок по фильтру -->
+      <div v-if="filteredGrades.length === 0" class="empty-grades">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+            <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                  stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </div>
+        <h3>Нет оценок по выбранному фильтру</h3>
+        <p>Попробуйте выбрать другой тип оценок</p>
       </div>
     </div>
 
@@ -327,6 +407,85 @@ const formatDate = (dateString: string) => {
 </template>
 
 <style scoped>
+/* Filter Btn */
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.grades-filters {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.filter-btn.active {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.empty-grades {
+  text-align: center;
+  padding: 40px 20px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  border: 2px dashed #e5e7eb;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  color: #9ca3af;
+}
+
+.empty-grades h3 {
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 1.125rem;
+}
+
+.empty-grades p {
+  color: #6b7280;
+  margin: 0;
+}
+
 .user-profile {
   background: white;
   border-radius: 16px;
@@ -345,9 +504,9 @@ const formatDate = (dateString: string) => {
 }
 
 .profile-header__teacher {
-    flex-direction: column;
-    text-align: center;
-    padding: 24px;
+  flex-direction: column;
+  text-align: center;
+  padding: 24px;
 }
 
 .avatar-section {
